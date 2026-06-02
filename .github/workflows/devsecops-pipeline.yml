@@ -1,0 +1,53 @@
+name: DevSecOps Security Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # ─────────────────────────────────────
+  # JOB 1: Software Composition Analysis
+  # ─────────────────────────────────────
+  sca-scan:
+    name: SCA - Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: vulnerable-node-app
+        run: npm install
+
+      - name: Run npm audit (SCA)
+        working-directory: vulnerable-node-app
+        run: |
+          echo "Running SCA scan..."
+          npm audit --audit-level=high
+        continue-on-error: false
+
+  # ─────────────────────────────────────
+  # JOB 2: Static Application Security Testing  
+  # ─────────────────────────────────────
+  sast-scan:
+    name: SAST - Static Code Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run Semgrep SAST
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: auto
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
