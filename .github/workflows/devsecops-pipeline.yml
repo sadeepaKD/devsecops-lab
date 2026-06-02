@@ -13,10 +13,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -38,7 +38,7 @@ jobs:
 
       - name: Upload SCA report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sca-security-report
           path: vulnerable-node-app/sca-results.json
@@ -49,18 +49,30 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Semgrep
+        run: pip install semgrep
 
       - name: Run Semgrep SAST
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: auto
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          echo "========================================="
+          echo "  SECURITY GATE: SAST Scan Starting"
+          echo "========================================="
+          semgrep --config=auto vulnerable-node-app/app.js \
+            --json > sast-results.json || true
+          semgrep --config=auto vulnerable-node-app/app.js \
+            --error
+        continue-on-error: false
 
       - name: Upload SAST report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sast-security-report
-          path: semgrep.sarif
+          path: sast-results.json
