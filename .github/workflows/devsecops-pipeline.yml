@@ -7,13 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  # ─────────────────────────────────────
-  # JOB 1: Software Composition Analysis
-  # ─────────────────────────────────────
   sca-scan:
     name: SCA - Dependency Vulnerability Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,21 +19,30 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: vulnerable-node-app/package-lock.json
 
       - name: Install dependencies
         working-directory: vulnerable-node-app
-        run: npm install
+        run: npm ci
 
       - name: Run npm audit (SCA)
         working-directory: vulnerable-node-app
         run: |
-          echo "Running SCA scan..."
+          echo "========================================="
+          echo "  SECURITY GATE: SCA Scan Starting"
+          echo "========================================="
+          npm audit --audit-level=high --json > sca-results.json || true
           npm audit --audit-level=high
         continue-on-error: false
 
-  # ─────────────────────────────────────
-  # JOB 2: Static Application Security Testing  
-  # ─────────────────────────────────────
+      - name: Upload SCA report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: sca-security-report
+          path: vulnerable-node-app/sca-results.json
+
   sast-scan:
     name: SAST - Static Code Analysis
     runs-on: ubuntu-latest
@@ -51,3 +57,10 @@ jobs:
           config: auto
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      - name: Upload SAST report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: sast-security-report
+          path: semgrep.sarif
